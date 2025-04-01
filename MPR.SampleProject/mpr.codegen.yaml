@@ -1,0 +1,11 @@
+solutionName: MPR.SampleProject
+versioning:
+  default: v1
+  type: urlSegment
+naming:
+  useDtoSuffix: true
+defaults:
+  readOnly: false
+  generateController: true
+  generateCommands: true
+  generateQueries: true
