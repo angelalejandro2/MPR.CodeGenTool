@@ -35,6 +35,9 @@ namespace MPR.CodeGenTool.Services
 
             var uowImplOutput = Path.Combine("MPR.SampleProject", $"{solutionName}.Infrastructure", "UnitOfWork");
             UnitOfWorkImplementationGenerator.GenerateImplementation(dllPath, solutionName, uowImplOutput);
+
+            var queriesOutput = Path.Combine("MPR.SampleProject", $"{solutionName}.Application");
+            QueryByIdGenerator.Generate(dllPath, solutionName, queriesOutput);
         }
     }
 }
