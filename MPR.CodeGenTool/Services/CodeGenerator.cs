@@ -11,8 +11,8 @@ namespace MPR.CodeGenTool.Services
             Console.WriteLine($"🚀 Generando código para solución: {solutionName}");
 
             // Ruta esperada del DLL de Infrastructure compilado
-            var dllPath = Path.Combine("MPR.SampleProject", $"{solutionName}.Infrastructure", "bin", "Debug", "net9.0", $"{solutionName}.Infrastructure.dll");
-            var outputPath = Path.Combine("MPR.SampleProject", $"{solutionName}.Application", "Dtos", "Queries");
+            var dllPath = Path.Combine(solutionName, $"{solutionName}.Infrastructure", "bin", "Debug", "net9.0", $"{solutionName}.Infrastructure.dll");
+            var outputPath = Path.Combine(solutionName, $"{solutionName}.Application", "Dtos", "Queries");
 
             if (!File.Exists(dllPath))
             {
@@ -22,22 +22,26 @@ namespace MPR.CodeGenTool.Services
             }
 
             // Llamamos al generador de DTOs
-            DtoGenerator.GenerateQueryDtosFromDbContexts(dllPath, solutionName, outputPath);
+            DtoConsolidatedGenerator.Generate(dllPath, solutionName, outputPath);
 
-            var repoOutput = Path.Combine("MPR.SampleProject", $"{solutionName}.Domain", "Repositories");
+            var repoOutput = Path.Combine(solutionName, $"{solutionName}.Domain", "Repositories");
             RepositoryInterfaceGenerator.GenerateEntityRepositoryInterfaces(dllPath, solutionName, repoOutput);
 
-            var uowOutput = Path.Combine("MPR.SampleProject", $"{solutionName}.Domain", "UnitOfWork");
+            var uowOutput = Path.Combine(solutionName, $"{solutionName}.Domain", "UnitOfWork");
             UnitOfWorkInterfaceGenerator.GenerateInterface(dllPath, solutionName, uowOutput);
 
-            var repoImplOutput = Path.Combine("MPR.SampleProject", $"{solutionName}.Infrastructure", "Repositories");
+            var repoImplOutput = Path.Combine(solutionName, $"{solutionName}.Infrastructure", "Repositories");
             RepositoryImplementationGenerator.GenerateEntityRepositories(dllPath, solutionName, repoImplOutput);
 
-            var uowImplOutput = Path.Combine("MPR.SampleProject", $"{solutionName}.Infrastructure", "UnitOfWork");
+            var uowImplOutput = Path.Combine(solutionName, $"{solutionName}.Infrastructure", "UnitOfWork");
             UnitOfWorkImplementationGenerator.GenerateImplementation(dllPath, solutionName, uowImplOutput);
 
-            var queriesOutput = Path.Combine("MPR.SampleProject", $"{solutionName}.Application");
-            QueryByIdGenerator.Generate(dllPath, solutionName, queriesOutput);
+            var queriesOutput = Path.Combine(solutionName, $"{solutionName}.Application");
+            QueryConsolidatedGenerator.Generate(dllPath, solutionName, queriesOutput);
+            QueryHandlerConsolidatedGenerator.Generate(dllPath, solutionName, queriesOutput);
+            CommandConsolidatedGenerator.Generate(dllPath, solutionName, queriesOutput);
+            CommandHandlerConsolidatedGenerator.Generate(dllPath, solutionName, queriesOutput);
+
         }
     }
 }

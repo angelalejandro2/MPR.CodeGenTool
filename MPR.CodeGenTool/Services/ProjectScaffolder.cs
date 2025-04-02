@@ -85,7 +85,7 @@ namespace MPR.CodeGenTool.Services
                         Mk("Commands", "Queries", "Dtos/Commands", "Dtos/Queries", "Interfaces", "Mappings");
                         break;
                     case "Domain":
-                        Mk("Entities", "Interfaces/Repositories", "Common");
+                        Mk("Entities", "Repositories", "Common");
                         break;
                     case "Infrastructure":
                         Mk("Context", "Repositories");

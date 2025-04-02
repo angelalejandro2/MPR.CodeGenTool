@@ -6,14 +6,16 @@ using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Collections.Generic;
 using MPR.CodeGenTool.Models;
+using MPR.CodeGenTool.Helpers;
 
 namespace MPR.CodeGenTool.Generators
 {
-    public class QueryByIdGenerator
+    public class DtoConsolidatedGenerator
     {
         public static void Generate(string infraAssemblyPath, string solutionName, string outputPath)
         {
             var assembly = Assembly.LoadFrom(infraAssemblyPath);
+            var primaryKeysByEntity = EfCoreMetadataHelper.GetPrimaryKeysFromContexts(infraAssemblyPath);
 
             var dbContextTypes = assembly.GetTypes()
                 .Where(t => typeof(DbContext).IsAssignableFrom(t) && !t.IsAbstract)
@@ -29,33 +31,37 @@ namespace MPR.CodeGenTool.Generators
                 foreach (var prop in dbSetProps)
                 {
                     var entityType = prop.PropertyType.GetGenericArguments()[0];
-                    var props = entityType.GetProperties();
+                    var entityName = entityType.Name;
 
-                    var keyProps = props.Where(p => p.Name.ToLower().Contains("id")).ToList();
+                    var entityProps = entityType.GetProperties()
+                        .Where(p => p.PropertyType.Namespace != "System.Collections.Generic")
+                        .ToList();
+
+                    var primaryKeys = primaryKeysByEntity.ContainsKey(entityName)
+                        ? primaryKeysByEntity[entityName]
+                        : new List<PropertyModel>();
 
                     var entityModel = new EntityModel
                     {
-                        Name = entityType.Name,
-                        PrimaryKeys = keyProps.Select(p => new PropertyModel
+                        Name = entityName,
+                        Properties = entityProps.Select(p => new PropertyModel
                         {
                             Name = p.Name,
                             Type = GetFriendlyTypeName(p.PropertyType)
-                        }).ToList()
+                        }).ToList(),
+                        PrimaryKeys = primaryKeys
                     };
 
-                    GenerateQueryAndHandler(entityModel, solutionName, outputPath);
+                    GenerateDtos(entityModel, solutionName, outputPath);
                 }
             }
         }
 
-        private static void GenerateQueryAndHandler(EntityModel entity, string solutionName, string outputPath)
+        private static void GenerateDtos(EntityModel entity, string solutionName, string outputPath)
         {
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var queryPath = Path.Combine(baseDir, "Templates", "Application", "Queries", "GetByIdQuery.scriban");
-            var handlerPath = Path.Combine(baseDir, "Templates", "Application", "Queries", "GetByIdQueryHandler.scriban");
-
-            var queryTemplate = Template.Parse(File.ReadAllText(queryPath));
-            var handlerTemplate = Template.Parse(File.ReadAllText(handlerPath));
+            var templatePath = Path.Combine(baseDir, "Templates", "Application", "Dtos", "DtosConsolidated.scriban");
+            var template = Template.Parse(File.ReadAllText(templatePath));
 
             var model = new
             {
@@ -63,20 +69,18 @@ namespace MPR.CodeGenTool.Generators
                 entity = new
                 {
                     name = entity.Name,
-                    keys = entity.PrimaryKeys.Select(k => new { name = k.Name, type = k.Type }).ToList()
+                    properties = entity.Properties.Select(p => new { name = p.Name, type = p.Type }).ToList(),
+                    primaryKeys = entity.PrimaryKeys.Select(k => new { name = k.Name, type = k.Type }).ToList()
                 }
             };
 
-            var queryCode = queryTemplate.Render(model, member => member.Name);
-            var handlerCode = handlerTemplate.Render(model, member => member.Name);
-
-            var dir = Path.Combine(outputPath, entity.Name, "Queries");
+            var dir = Path.Combine(outputPath, "Dtos");
             Directory.CreateDirectory(dir);
 
-            File.WriteAllText(Path.Combine(dir, $"Get{entity.Name}ByIdQuery.cs"), queryCode);
-            File.WriteAllText(Path.Combine(dir, $"Get{entity.Name}ByIdQueryHandler.cs"), handlerCode);
+            var filePath = Path.Combine(dir, $"{entity.Name}Dtos.cs");
+            File.WriteAllText(filePath, template.Render(model, member => member.Name));
 
-            Console.WriteLine($"✅ Query y Handler generados para: {entity.Name}");
+            Console.WriteLine($"✅ DTOs consolidados generados para: {entity.Name}");
         }
 
         private static string GetFriendlyTypeName(Type type)
