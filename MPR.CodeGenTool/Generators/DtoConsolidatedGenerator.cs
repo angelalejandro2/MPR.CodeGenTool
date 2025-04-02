@@ -7,6 +7,7 @@ using System.Linq;
 using System.Collections.Generic;
 using MPR.CodeGenTool.Models;
 using MPR.CodeGenTool.Helpers;
+using MPR.CodeGenTool.Services.Metadata;
 
 namespace MPR.CodeGenTool.Generators
 {
@@ -14,46 +15,38 @@ namespace MPR.CodeGenTool.Generators
     {
         public static void Generate(string infraAssemblyPath, string solutionName, string outputPath)
         {
-            var assembly = Assembly.LoadFrom(infraAssemblyPath);
-            var primaryKeysByEntity = EfCoreMetadataHelper.GetPrimaryKeysFromContexts(infraAssemblyPath);
+            var metadataService = new DbContextMetadataService();
+            var metadataList = metadataService.LoadMetadataFromAssembly(infraAssemblyPath);
 
-            var dbContextTypes = assembly.GetTypes()
-                .Where(t => typeof(DbContext).IsAssignableFrom(t) && !t.IsAbstract)
-                .ToList();
+            var primaryKeysByEntity = metadataList
+                .GroupBy(e => e.EntityName)
+                .ToDictionary(g => g.Key, g => g.First().PrimaryKeyProperties
+                    .Select(pk => new PropertyModel
+                    {
+                        Name = pk.Name,
+                        Type = GetFriendlyTypeName(pk.Type)
+                    }).ToList());
 
-            foreach (var dbContextType in dbContextTypes)
+            foreach (var entity in metadataList)
             {
-                var dbSetProps = dbContextType.GetProperties()
-                    .Where(p => p.PropertyType.IsGenericType &&
-                                p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>))
+                var props = entity.ClrType.GetProperties()
+                    .Where(p => p.PropertyType.Namespace != "System.Collections.Generic")
                     .ToList();
 
-                foreach (var prop in dbSetProps)
+                var entityModel = new EntityModel
                 {
-                    var entityType = prop.PropertyType.GetGenericArguments()[0];
-                    var entityName = entityType.Name;
-
-                    var entityProps = entityType.GetProperties()
-                        .Where(p => p.PropertyType.Namespace != "System.Collections.Generic")
-                        .ToList();
-
-                    var primaryKeys = primaryKeysByEntity.ContainsKey(entityName)
-                        ? primaryKeysByEntity[entityName]
-                        : new List<PropertyModel>();
-
-                    var entityModel = new EntityModel
+                    Name = entity.EntityName,
+                    Properties = props.Select(p => new PropertyModel
                     {
-                        Name = entityName,
-                        Properties = entityProps.Select(p => new PropertyModel
-                        {
-                            Name = p.Name,
-                            Type = GetFriendlyTypeName(p.PropertyType)
-                        }).ToList(),
-                        PrimaryKeys = primaryKeys
-                    };
+                        Name = p.Name,
+                        Type = GetFriendlyTypeName(p.PropertyType)
+                    }).ToList(),
+                    PrimaryKeys = primaryKeysByEntity.ContainsKey(entity.EntityName)
+                        ? primaryKeysByEntity[entity.EntityName]
+                        : new List<PropertyModel>()
+                };
 
-                    GenerateDtos(entityModel, solutionName, outputPath);
-                }
+                GenerateDtos(entityModel, solutionName, outputPath);
             }
         }
 

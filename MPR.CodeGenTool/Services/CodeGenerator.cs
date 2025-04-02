@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using MPR.CodeGenTool.Generators;
+using MPR.CodeGenTool.Services.Metadata;
 
 namespace MPR.CodeGenTool.Services
 {
@@ -19,6 +20,19 @@ namespace MPR.CodeGenTool.Services
                 Console.WriteLine($"❌ No se encontró el assembly en: {dllPath}");
                 Console.WriteLine("Asegúrate de compilar el proyecto Infrastructure antes de ejecutar generate.");
                 return;
+            }
+
+            var metadataService = new DbContextMetadataService();
+            var metadata = metadataService.LoadMetadataFromAssembly(dllPath);
+
+            foreach (var entity in metadata)
+            {
+                Console.WriteLine($"[{entity.ContextName}] {entity.EntityName}");
+
+                foreach (var pk in entity.PrimaryKeyProperties)
+                {
+                    Console.WriteLine($"  PK: {pk.Name} ({pk.Type.Name}){(pk.IsNullable ? "?" : "")}");
+                }
             }
 
             // Llamamos al generador de DTOs
