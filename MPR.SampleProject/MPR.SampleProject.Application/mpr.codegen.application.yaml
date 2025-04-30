@@ -1,6 +1,0 @@
-naming:
-  dtoSuffix: Dto
-  commandSuffix: Command
-  querySuffix: Query
-validations:
-  generateFluentValidators: true

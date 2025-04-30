@@ -1,3 +1,0 @@
-defaults:
-  generateTestsFor: [get, post, put, delete]
-  versionedControllers: true

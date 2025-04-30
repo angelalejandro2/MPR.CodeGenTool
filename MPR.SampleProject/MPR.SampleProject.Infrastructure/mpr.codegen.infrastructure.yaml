@@ -1,7 +1,0 @@
-contexts:
-  - name: MPR.SampleProjectDbContext
-    provider: SqlServer
-    version: v1
-    entities:
-      - name: ExampleEntity
-        readOnly: true
