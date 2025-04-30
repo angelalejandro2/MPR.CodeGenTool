@@ -85,9 +85,10 @@ namespace MPR.CodeGenTool.Generation.Services
             
             var context = new TemplateContext();
             context.PushGlobal(scriptObject);
-            
-            // Add custom functions
-            scriptObject.Import("string", new StringFunctions());
+
+            var stringFunctions = new ScriptObject();
+            stringFunctions.Import(typeof(StringFunctions));
+            scriptObject.Add("string", stringFunctions);
             
             return await template.RenderAsync(context);
         }

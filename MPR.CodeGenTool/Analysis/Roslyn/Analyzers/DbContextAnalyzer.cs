@@ -11,20 +11,27 @@ namespace MPR.CodeGenTool.Analysis.Roslyn.Analyzers
 {
     public class DbContextAnalyzer : IRoslynAnalyzer<DbContextMetadata>
     {
+        private readonly Compilation _compilation;
+
+        public DbContextAnalyzer(Compilation compilation)
+        {
+            _compilation = compilation;
+        }
+
         public bool CanAnalyze(SyntaxNode node)
         {
-            return node is ClassDeclarationSyntax classDeclaration && 
+            return node is ClassDeclarationSyntax classDeclaration &&
                    IsDbContextClass(classDeclaration);
         }
 
         public DbContextMetadata Analyze(SyntaxNode node)
         {
             var classDeclaration = (ClassDeclarationSyntax)node;
-            var semanticModel = classDeclaration.SyntaxTree.GetSemanticModel();
-            
+            var semanticModel = _compilation.GetSemanticModel(classDeclaration.SyntaxTree);
+
             var contextName = classDeclaration.Identifier.Text;
             var connectionStringName = contextName.Replace("Context", "Connection");
-            
+
             var dbContext = new DbContextMetadata
             {
                 Name = contextName,
@@ -35,7 +42,7 @@ namespace MPR.CodeGenTool.Analysis.Roslyn.Analyzers
                 DbSets = new List<DbSetMetadata>(),
                 Attributes = ExtractAttributes(classDeclaration.AttributeLists)
             };
-            
+
             foreach (var member in classDeclaration.Members)
             {
                 if (member is PropertyDeclarationSyntax property && IsDbSetProperty(property))
@@ -44,10 +51,10 @@ namespace MPR.CodeGenTool.Analysis.Roslyn.Analyzers
                     dbContext.DbSets.Add(dbSet);
                 }
             }
-            
+
             return dbContext;
         }
-        
+
         private bool IsDbContextClass(ClassDeclarationSyntax classDeclaration)
         {
             // Check if it inherits from DbContext
@@ -60,43 +67,43 @@ namespace MPR.CodeGenTool.Analysis.Roslyn.Analyzers
                         return true;
                 }
             }
-            
+
             // Or has a name ending with "Context"
             return classDeclaration.Identifier.Text.EndsWith("Context");
         }
-        
+
         private bool IsDbSetProperty(PropertyDeclarationSyntax property)
         {
             var typeName = property.Type.ToString();
             return typeName.StartsWith("DbSet<") || typeName.Contains(".DbSet<");
         }
-        
+
         private DbSetMetadata AnalyzeDbSetProperty(PropertyDeclarationSyntax property, SemanticModel semanticModel)
         {
             var typeName = property.Type.ToString();
             var entityTypeName = ExtractEntityTypeName(typeName);
-            
+
             return new DbSetMetadata
             {
                 Name = property.Identifier.Text,
                 EntityTypeName = entityTypeName
             };
         }
-        
+
         private string ExtractEntityTypeName(string dbSetTypeName)
         {
             // Extract T from DbSet<T>
             var startIndex = dbSetTypeName.IndexOf('<') + 1;
             var endIndex = dbSetTypeName.LastIndexOf('>');
-            
+
             if (startIndex > 0 && endIndex > startIndex)
             {
                 return dbSetTypeName.Substring(startIndex, endIndex - startIndex).Trim();
             }
-            
+
             return string.Empty;
         }
-        
+
         private DatabaseProvider ExtractDatabaseProvider(ClassDeclarationSyntax classDeclaration)
         {
             // Look for [DbProvider] attribute
@@ -124,15 +131,15 @@ namespace MPR.CodeGenTool.Analysis.Roslyn.Analyzers
                     }
                 }
             }
-            
+
             // Default to SQL Server if not specified
             return DatabaseProvider.SqlServer;
         }
-        
+
         private List<AttributeMetadata> ExtractAttributes(SyntaxList<AttributeListSyntax> attributeLists)
         {
             var result = new List<AttributeMetadata>();
-            
+
             foreach (var attributeList in attributeLists)
             {
                 foreach (var attribute in attributeList.Attributes)
@@ -142,24 +149,24 @@ namespace MPR.CodeGenTool.Analysis.Roslyn.Analyzers
                     {
                         attributeName = attributeName.Substring(0, attributeName.Length - 9);
                     }
-                    
+
                     var attributeMetadata = new AttributeMetadata
                     {
                         Name = attributeName,
                         Arguments = ExtractAttributeArguments(attribute)
                     };
-                    
+
                     result.Add(attributeMetadata);
                 }
             }
-            
+
             return result;
         }
-        
+
         private List<AttributeArgumentMetadata> ExtractAttributeArguments(AttributeSyntax attribute)
         {
             var result = new List<AttributeArgumentMetadata>();
-            
+
             if (attribute.ArgumentList != null)
             {
                 foreach (var argument in attribute.ArgumentList.Arguments)
@@ -169,16 +176,16 @@ namespace MPR.CodeGenTool.Analysis.Roslyn.Analyzers
                         Value = argument.Expression.ToString(),
                         IsNamedArgument = argument.NameEquals != null
                     };
-                    
+
                     if (argument.NameEquals != null)
                     {
                         argMetadata.Name = argument.NameEquals.Name.ToString();
                     }
-                    
+
                     result.Add(argMetadata);
                 }
             }
-            
+
             return result;
         }
     }
