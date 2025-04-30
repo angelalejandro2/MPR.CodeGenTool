@@ -25,15 +25,15 @@ namespace MPR.CodeGenTool.Services
             var metadataService = new DbContextMetadataService();
             var metadata = metadataService.LoadMetadataFromAssembly(dllPath);
 
-            foreach (var entity in metadata)
-            {
-                Console.WriteLine($"[{entity.ContextName}] {entity.EntityName}");
+            // foreach (var entity in metadata)
+            // {
+            //     Console.WriteLine($"[{entity.ContextName}] {entity.EntityName}");
 
-                foreach (var pk in entity.PrimaryKeyProperties)
-                {
-                    Console.WriteLine($"  PK: {pk.Name} ({pk.Type.Name}){(pk.IsNullable ? "?" : "")}");
-                }
-            }
+            //     foreach (var pk in entity.PrimaryKeyProperties)
+            //     {
+            //         Console.WriteLine($"  PK: {pk.Name} ({pk.Type.Name}){(pk.IsNullable ? "?" : "")}");
+            //     }
+            // }
 
             // Llamamos al generador de DTOs
             DtoConsolidatedGenerator.Generate(dllPath, solutionName, outputPath);
@@ -55,7 +55,24 @@ namespace MPR.CodeGenTool.Services
             QueryHandlerConsolidatedGenerator.Generate(dllPath, solutionName, queriesOutput);
             CommandConsolidatedGenerator.Generate(dllPath, solutionName, queriesOutput);
             CommandHandlerConsolidatedGenerator.Generate(dllPath, solutionName, queriesOutput);
+            MappingsConsolidatedGenerator.Generate(dllPath, solutionName, queriesOutput);
 
+            var apiOutput = Path.Combine(solutionName, $"{solutionName}.Api");
+            ControllerConsolidatedGenerator.Generate(dllPath, solutionName, apiOutput);
+
+            var programPath = Path.Combine(apiOutput, "Program.cs");
+
+            // Inyectar AutoMapper
+            ProjectStructureService.InjectAutoMapper(programPath);
+
+            // Inyectar múltiples servicios
+            ProjectStructureService.InjectLinesIntoProgram(programPath,
+                "var builder = WebApplication.CreateBuilder",
+                new[]
+                {
+                    "builder.Services.AddMediatR(typeof(SomeHandler).Assembly);",
+                    "builder.Services.AddSwaggerGen();"
+                });
         }
     }
 }

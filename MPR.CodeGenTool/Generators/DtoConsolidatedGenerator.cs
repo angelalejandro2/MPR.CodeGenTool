@@ -56,17 +56,25 @@ namespace MPR.CodeGenTool.Generators
             var templatePath = Path.Combine(baseDir, "Templates", "Application", "Dtos", "DtosConsolidated.scriban");
             var template = Template.Parse(File.ReadAllText(templatePath));
 
+            var primaryKeyNames = entity.PrimaryKeys.Select(k => k.Name).ToHashSet();
+
             var model = new
             {
                 solutionName,
                 entity = new
                 {
                     name = entity.Name,
-                    properties = entity.Properties.Select(p => new { name = p.Name, type = p.Type }).ToList(),
-                    primaryKeys = entity.PrimaryKeys.Select(k => new { name = k.Name, type = k.Type }).ToList()
+                    primaryKeys = entity.PrimaryKeys.Select(k => new { name = k.Name, type = k.Type }).ToList(),
+                    properties = entity.Properties
+                        .Where(p => !primaryKeyNames.Contains(p.Name)) // 🚫 Elimina duplicados aquí
+                        .Select(p => new { name = p.Name, type = p.Type }).ToList()
                 }
             };
 
+            if (!entity.PrimaryKeys.Any())
+            {
+                Console.WriteLine($"⚠️  {entity.Name} no tiene claves primarias. Solo se generará CreateModel.");
+            }
             var dir = Path.Combine(outputPath, "Dtos");
             Directory.CreateDirectory(dir);
 

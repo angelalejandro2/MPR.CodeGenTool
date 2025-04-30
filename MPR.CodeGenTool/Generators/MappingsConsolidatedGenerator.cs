@@ -8,7 +8,7 @@ using MPR.CodeGenTool.Services.Metadata;
 
 namespace MPR.CodeGenTool.Generators
 {
-    public class CommandHandlerConsolidatedGenerator
+    public class MappingsConsolidatedGenerator
     {
         public static void Generate(string infraAssemblyPath, string solutionName, string outputPath)
         {
@@ -17,77 +17,61 @@ namespace MPR.CodeGenTool.Generators
 
             foreach (var entity in metadataList)
             {
-                var entityName = entity.EntityName;
                 var clrType = entity.ClrType;
 
                 var entityProps = clrType.GetProperties()
                     .Where(p => p.PropertyType.Namespace != "System.Collections.Generic")
                     .ToList();
 
-                var primaryKeys = entity.PrimaryKeyProperties.Select(pk => new PropertyModel
-                {
-                    Name = pk.Name,
-                    Type = GetFriendlyTypeName(pk.Type)
-                }).ToList();
-
                 var entityModel = new EntityModel
                 {
-                    Name = entityName,
+                    Name = entity.EntityName,
                     Properties = entityProps.Select(p => new PropertyModel
                     {
                         Name = p.Name,
                         Type = GetFriendlyTypeName(p.PropertyType)
                     }).ToList(),
-                    PrimaryKeys = primaryKeys
+                    PrimaryKeys = entity.PrimaryKeyProperties.Select(pk => new PropertyModel
+                    {
+                        Name = pk.Name,
+                        Type = GetFriendlyTypeName(pk.Type)
+                    }).ToList()
                 };
 
-                GenerateCommandHandlers(entityModel, solutionName, outputPath);
+                GenerateMapping(entityModel, solutionName, outputPath);
             }
         }
 
-        private static void GenerateCommandHandlers(EntityModel entity, string solutionName, string outputPath)
+        private static void GenerateMapping(EntityModel entity, string solutionName, string outputPath)
         {
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var templatePath = Path.Combine(baseDir, "Templates", "Application", "CommandHandlers", "CommandHandlersConsolidated.scriban");
+            var templatePath = Path.Combine(baseDir, "Templates", "Application", "Mappings", "MappingsConsolidated.scriban");
             var template = Template.Parse(File.ReadAllText(templatePath));
 
             if (template.HasErrors)
             {
                 Console.WriteLine("❌ Error en el template Scriban:");
                 foreach (var message in template.Messages)
-                {
                     Console.WriteLine($"- {message}");
-                }
                 return;
             }
-
-            var primaryKeyNames = entity.PrimaryKeys.Select(k => k.Name).ToHashSet();
 
             var model = new
             {
                 solutionName,
                 entity = new
                 {
-                    name = entity.Name,
-                    primaryKeys = entity.PrimaryKeys.Select(k => new { name = k.Name, type = k.Type }).ToList(),
-                    properties = entity.Properties
-                        .Where(p => !primaryKeyNames.Contains(p.Name))
-                        .Select(p => new { name = p.Name, type = p.Type }).ToList()
+                    name = entity.Name
                 }
             };
 
-            if (!entity.PrimaryKeys.Any())
-            {
-                Console.WriteLine($"⚠️  {entity.Name} no tiene claves primarias. Se omite generación de comandos o handlers.");
-                return;
-            }
-            var dir = Path.Combine(outputPath, "CommandHandlers");
+            var dir = Path.Combine(outputPath, "Mappings");
             Directory.CreateDirectory(dir);
 
-            var filePath = Path.Combine(dir, $"{entity.Name}CommandHandlers.cs");
+            var filePath = Path.Combine(dir, $"{entity.Name}Profile.cs");
             File.WriteAllText(filePath, template.Render(model, member => member.Name));
 
-            Console.WriteLine($"✅ Manejadores de comandos CQRS generados para: {entity.Name}");
+            Console.WriteLine($"✅ Mapping generado para: {entity.Name}");
         }
 
         private static string GetFriendlyTypeName(Type type)

@@ -17,8 +17,11 @@ namespace {{ solutionName }}.Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task<TEntity?> GetByIdAsync(object[] keyValues, CancellationToken cancellationToken = default)
-            => await _context.Set<TEntity>().FindAsync(keyValues, cancellationToken);
+        public async Task<TEntity?> GetByIdAsync(object key, CancellationToken cancellationToken)
+        => await _context.Set<TEntity>().FindAsync(new object[] { key }, cancellationToken);
+    
+        public async Task<TEntity?> GetByIdAsync(object[] keys, CancellationToken cancellationToken)
+        => await _context.Set<TEntity>().FindAsync(keys, cancellationToken);
 
         public async Task<IEnumerable<TEntity>> GetAllAsync(CancellationToken cancellationToken = default)
             => await _context.Set<TEntity>().ToListAsync(cancellationToken);

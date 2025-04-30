@@ -1,4 +1,7 @@
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddMediatR(typeof(SomeHandler).Assembly);
+builder.Services.AddSwaggerGen();
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi

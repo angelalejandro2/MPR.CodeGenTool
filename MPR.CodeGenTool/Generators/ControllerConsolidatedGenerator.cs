@@ -8,7 +8,7 @@ using MPR.CodeGenTool.Services.Metadata;
 
 namespace MPR.CodeGenTool.Generators
 {
-    public class CommandHandlerConsolidatedGenerator
+    public class ControllerConsolidatedGenerator
     {
         public static void Generate(string infraAssemblyPath, string solutionName, string outputPath)
         {
@@ -17,7 +17,12 @@ namespace MPR.CodeGenTool.Generators
 
             foreach (var entity in metadataList)
             {
-                var entityName = entity.EntityName;
+                if (!entity.PrimaryKeyProperties.Any())
+                {
+                    Console.WriteLine($"⚠️  {entity.EntityName} no tiene claves primarias. No se generará controlador.");
+                    continue;
+                }
+
                 var clrType = entity.ClrType;
 
                 var entityProps = clrType.GetProperties()
@@ -32,7 +37,7 @@ namespace MPR.CodeGenTool.Generators
 
                 var entityModel = new EntityModel
                 {
-                    Name = entityName,
+                    Name = entity.EntityName,
                     Properties = entityProps.Select(p => new PropertyModel
                     {
                         Name = p.Name,
@@ -41,23 +46,21 @@ namespace MPR.CodeGenTool.Generators
                     PrimaryKeys = primaryKeys
                 };
 
-                GenerateCommandHandlers(entityModel, solutionName, outputPath);
+                GenerateController(entityModel, solutionName, outputPath);
             }
         }
 
-        private static void GenerateCommandHandlers(EntityModel entity, string solutionName, string outputPath)
+        private static void GenerateController(EntityModel entity, string solutionName, string outputPath)
         {
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var templatePath = Path.Combine(baseDir, "Templates", "Application", "CommandHandlers", "CommandHandlersConsolidated.scriban");
+            var templatePath = Path.Combine(baseDir, "Templates", "Api", "Controllers", "ControllerConsolidated.scriban");
             var template = Template.Parse(File.ReadAllText(templatePath));
 
             if (template.HasErrors)
             {
                 Console.WriteLine("❌ Error en el template Scriban:");
                 foreach (var message in template.Messages)
-                {
                     Console.WriteLine($"- {message}");
-                }
                 return;
             }
 
@@ -76,18 +79,13 @@ namespace MPR.CodeGenTool.Generators
                 }
             };
 
-            if (!entity.PrimaryKeys.Any())
-            {
-                Console.WriteLine($"⚠️  {entity.Name} no tiene claves primarias. Se omite generación de comandos o handlers.");
-                return;
-            }
-            var dir = Path.Combine(outputPath, "CommandHandlers");
+            var dir = Path.Combine(outputPath, "Controllers", "V1");
             Directory.CreateDirectory(dir);
 
-            var filePath = Path.Combine(dir, $"{entity.Name}CommandHandlers.cs");
+            var filePath = Path.Combine(dir, $"{entity.Name}Controller.cs");
             File.WriteAllText(filePath, template.Render(model, member => member.Name));
 
-            Console.WriteLine($"✅ Manejadores de comandos CQRS generados para: {entity.Name}");
+            Console.WriteLine($"✅ Controller generado para: {entity.Name}");
         }
 
         private static string GetFriendlyTypeName(Type type)

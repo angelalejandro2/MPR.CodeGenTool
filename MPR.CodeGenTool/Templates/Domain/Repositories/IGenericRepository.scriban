@@ -8,7 +8,8 @@ namespace {{ solutionName }}.Domain.Repositories
 {
     public interface IGenericRepository<TEntity> where TEntity : class
     {
-        Task<TEntity?> GetByIdAsync(object[] keyValues, CancellationToken cancellationToken = default);
+        Task<TEntity?> GetByIdAsync(object key, CancellationToken cancellationToken);
+        Task<TEntity?> GetByIdAsync(object[] keys, CancellationToken cancellationToken);
         Task<IEnumerable<TEntity>> GetAllAsync(CancellationToken cancellationToken = default);
         Task AddAsync(TEntity entity, CancellationToken cancellationToken = default);
         void Update(TEntity entity);
